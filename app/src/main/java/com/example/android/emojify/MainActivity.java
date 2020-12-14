@@ -18,14 +18,26 @@ package com.example.android.emojify;
 
 
 import android.Manifest;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.graphics.Rect;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import androidx.annotation.NonNull;
+
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.android.gms.tasks.Task;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.mlkit.vision.common.InputImage;
+import com.google.mlkit.vision.face.Face;
+import com.google.mlkit.vision.face.FaceDetection;
+import com.google.mlkit.vision.face.FaceDetector;
+import com.google.mlkit.vision.face.FaceDetectorOptions;
+
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
@@ -40,6 +52,7 @@ import android.widget.Toast;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -187,9 +200,62 @@ public class MainActivity extends AppCompatActivity {
         mResultsBitmap = BitmapUtils.resamplePic(this, mTempPhotoPath);
         mResultsBitmap = Emojifier.rotateImage(mResultsBitmap, 270);
 
-        Emojifier.detectFaces(this, mResultsBitmap);
+        mResultsBitmap = detectFacesAndOverlayEmoji(this, mResultsBitmap);
         // Set the new bitmap to the ImageView
         mImageView.setImageBitmap(mResultsBitmap);
+
+
+    }
+
+    public Bitmap detectFacesAndOverlayEmoji(final Context context, final Bitmap bitmap)  {
+
+
+//        Bitmap bitmap = BitmapFactory.decodeFile("/mnt/sdcard/DX/faceTest.jpg");
+
+        FaceDetectorOptions highAccuracyOpts =
+                new FaceDetectorOptions.Builder()
+                        .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
+                        .setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_ALL)
+                        .build();
+
+        final Bitmap[] resultBitMap = {bitmap};
+
+        InputImage image = InputImage.fromBitmap(bitmap, 0);
+
+        final FaceDetector detector = FaceDetection.getClient(highAccuracyOpts);
+
+        Task<List<Face>> result =
+                detector.process(image)
+                        .addOnSuccessListener(
+                                new OnSuccessListener<List<Face>>() {
+                                    @Override
+                                    public void onSuccess(List<Face> faces) {
+                                        // Task completed successfully
+                                        for (Face face : faces) {
+                                            Rect bounds = face.getBoundingBox();
+                                            float rotY = face.getHeadEulerAngleY();  // Head is rotated to the right rotY degrees
+                                            float rotZ = face.getHeadEulerAngleZ();  // Head is tilted sideways rotZ degrees
+
+                                            Emojifier.Emoji emoji = Emojifier.whichEmoji(face);
+                                            Bitmap emojiBitMap = Emojifier.getEmojiPic(context, emoji);
+                                            resultBitMap[0] = Emojifier.addBitmapToFace(resultBitMap[0], emojiBitMap, face);
+                                        }
+                                        mImageView.setImageBitmap(resultBitMap[0]);
+
+                                    }
+                                })
+                        .addOnFailureListener(
+                                new OnFailureListener() {
+                                    @Override
+                                    public void onFailure(@NonNull Exception e) {
+                                        // Task failed with an exception
+                                        // ...
+                                        Log.w(TAG, "Failed" + e.getMessage());
+                                        Toast.makeText(context, "No faces Dected", Toast.LENGTH_SHORT).show();
+                                    }
+                                });
+
+        return resultBitMap[0];
 
 
     }
