@@ -30,6 +30,8 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 import androidx.appcompat.app.AppCompatActivity;
+
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -152,10 +154,13 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private static final String TAG = "MainActivity";
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        Log.w(TAG, "onActivityResult: " + resultCode);
         // If the image capture activity was called and was successful
+        super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
             // Process the image and set it to the TextView
             processAndSetImage();
@@ -180,9 +185,13 @@ public class MainActivity extends AppCompatActivity {
 
         // Resample the saved image to fit the ImageView
         mResultsBitmap = BitmapUtils.resamplePic(this, mTempPhotoPath);
+        mResultsBitmap = Emojifier.rotateImage(mResultsBitmap, 270);
 
+        Emojifier.detectFaces(this, mResultsBitmap);
         // Set the new bitmap to the ImageView
         mImageView.setImageBitmap(mResultsBitmap);
+
+
     }
 
 
