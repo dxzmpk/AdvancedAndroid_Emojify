@@ -70,6 +70,7 @@ public class MainActivity extends AppCompatActivity {
 
     private TextView mTitleTextView;
 
+
     private String mTempPhotoPath;
 
     private Bitmap mResultsBitmap;
